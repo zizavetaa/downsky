@@ -1,0 +1,213 @@
+import os
+import random
+import pygame
+import asyncio
+import websockets
+import io
+import base64
+import threading
+import app.constants as constants
+from PIL import Image
+
+from app.parse import Parser
+from app.image_utils import RandomIndexSampler, PatchImage
+
+port = os.getenv("PORT", 8765)
+
+
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+img_width = 416
+img_height = 696
+
+orig_path = 'sky3.png'
+original = pygame.image.load(orig_path)
+
+class Animator:
+    def __init__(self, bx, by):
+        self.resx = bx*constants.BWIDTH+2*constants.BOARD_HEIGHT+constants.BOARD_MARGIN
+        self.resy = by*constants.BHEIGHT+2*constants.BOARD_HEIGHT+constants.BOARD_MARGIN
+        self.texts = []
+        self.texts_only = []
+        self.done = False
+        self.first_run = True
+        self.clock = pygame.time.Clock()
+        self.parser = Parser()
+        self.patch_image = PatchImage(cols=bx, rows=by, orig_path=orig_path)
+        self.num_patches = bx*by
+        self.displayed_patches = 0
+        self.idx_sampler = RandomIndexSampler(self.num_patches)
+        self.pos_sampler = RandomIndexSampler(self.num_patches)
+        self.image = Image.new("RGB", (img_width, img_height), (255, 255, 255))
+
+    def handle_external_events(self):
+        if not self.parser.event_queue.empty():
+            event = self.parser.event_queue.get()
+
+            if event:
+                self.image = self.generate_image()
+                self.write_comment(event)
+    
+    def start_parser(self):
+        thread = threading.Thread(target=self.parser.parse, daemon=True)
+        thread.start()
+    
+    def wrap_text(self, text, max_width):
+        words = text.split(" ")
+        lines = []
+        current_line = ""
+
+        for word in words:
+            test_line = current_line + (" " if current_line else "") + word
+            text_surface = self.font.render(test_line, True, (0, 0, 0))
+
+            if text_surface.get_width() <= max_width:
+                current_line = test_line
+            else:
+                if current_line:  # push current line
+                    lines.append(current_line)
+                current_line = word  # start new line
+
+        if current_line:
+            lines.append(current_line)
+
+        return lines
+    
+    def render_multiline(self, text, max_width):
+        lines = self.wrap_text(text, max_width)
+
+        line_surfaces = [self.font.render(line, True, (0, 0, 0)) for line in lines]
+
+        width = max(s.get_width() for s in line_surfaces)
+        height = sum(s.get_height() for s in line_surfaces)
+
+        surface = pygame.Surface((width, height), pygame.SRCALPHA)
+
+        y_offset = 0
+        for s in line_surfaces:
+            surface.blit(s, (0, y_offset))
+            y_offset += s.get_height()
+
+        return surface
+    
+    def write_comment(self, text):
+        self.texts_only.append(text)
+        text_surface = self.render_multiline(text, self.resx)
+
+        x = random.randint(0, self.resx - text_surface.get_width())
+        y = random.randint(0, self.resy - text_surface.get_height())
+        self.texts.append((text_surface, (x,y)))
+    
+    def generate_image(self,):
+        patch_index = self.idx_sampler.sample()
+        position_index = self.pos_sampler.sample()
+        patch = self.patch_image.get_patch(patch_index)
+        left, upper, _, _ = self.patch_image.get_patch_coords(position_index)
+        new_img = self.patch_image.add_patch(self.image, patch, left, upper)
+        self.displayed_patches += 1
+        return new_img
+    
+    def pil_to_pygame_img(self, pil_image):
+        mode = pil_image.mode
+        size = pil_image.size
+        data = pil_image.tobytes()
+        pygame_image = pygame.image.fromstring(data, size, mode)
+        return pygame_image
+    
+    def draw(self):
+        self.screen.fill(constants.WHITE)
+        # self.left_surface.fill((255, 255, 255))
+        pygame_img = self.pil_to_pygame_img(self.image)
+        pygame_img = pygame.transform.scale(pygame_img, (416, 696))
+        self.screen.blit(pygame_img, (self.resx, 0))
+        for t, pos in self.texts:
+            self.screen.blit(t, pos)
+        pygame.display.flip()
+    
+    def reset(self):
+        self.texts.clear()
+        self.texts_only.clear()
+        self.image = Image.new("RGB", (img_width, img_height), (255, 255, 255))
+        self.idx_sampler = RandomIndexSampler(self.num_patches)
+        self.pos_sampler = RandomIndexSampler(self.num_patches)
+        self.displayed_patches = 0
+        self.first_run = True
+    
+    def run(self):
+        pygame.init()
+        pygame.font.init()
+        self.font = pygame.font.SysFont("Arial", 8)
+        self.screen = pygame.display.set_mode((self.resx*2,self.resy))
+        # self.left_surface = pygame.Surface((self.resx,self.resy))
+        # self.right_surface = pygame.Surface((self.resx,self.resy))
+        self.start_parser()
+
+        last_check = 0
+        while not self.done:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.done = True
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        if len(self.texts) == 0:
+                            text = 'не робит'
+                            self.write_comment(text)
+                        else:
+                            idx_max = len(self.texts)
+                            idx = random.randint(0, idx_max - 1)
+                            self.image = self.generate_image()
+                            self.write_comment(self.texts_only[idx])
+
+            if self.first_run:
+                self.image = self.generate_image()
+                self.first_run = False
+
+            now = pygame.time.get_ticks()
+            if now - last_check > 5:
+                self.handle_external_events()
+                self.draw()
+                self.clock.tick(10)
+                last_check = now
+                if self.displayed_patches == self.num_patches - 1:
+                    self.reset()
+        pygame.font.quit()
+        pygame.display.quit()  
+
+async def send_frame(websocket, path, game):
+    while not game.done:
+        # Capture the Pygame window as a surface
+        frame = pygame.Surface((game.resx*2, game.resy))
+        frame.blit(game.screen, (0, 0))  # Capture the screen content
+        
+        # Convert the Pygame surface to a PIL image
+        pil_image = Image.frombytes("RGB", (game.resx*2, game.resy), pygame.image.tostring(frame, "RGB"))
+        
+        # Convert the image to a base64 string
+        with io.BytesIO() as byte_io:
+            pil_image.save(byte_io, format="PNG")
+            byte_data = byte_io.getvalue()
+            base64_image = base64.b64encode(byte_data).decode('utf-8')
+        # Send the base64-encoded image over WebSocket
+        await websocket.send(base64_image)
+        # Control the frame rate
+        await asyncio.sleep(0.1)  # Send a frame every 100ms (10fps)
+
+def start_server(game):
+    async def websocket_server():
+        server = await websockets.serve(lambda ws, path: send_frame(ws, path, game), "0.0.0.0", port)
+        print(f"WebSocket server started at ws://localhost:{port}")
+        await server.wait_closed()
+
+    asyncio.run(websocket_server())
+
+def main():
+    animator = Animator(20,34)
+
+    server_thread = threading.Thread(target=start_server, args=(animator,))
+    server_thread.start()
+    animator.run()
+
+    server_thread.join()
+
+if __name__ == "__main__":
+    main()

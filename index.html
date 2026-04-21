@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pygame to WebSocket</title>
+    <style>
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #222; }
+        canvas { border: 1px solid white; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="640" height="480"></canvas>
+    <script>
+        // WebSocket connection to the server
+        const ws = new WebSocket("ws://localhost:8765");
+
+        // Get the canvas element and its context for drawing
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // On connection open
+        ws.onopen = function() {
+            console.log("Connected to WebSocket server.");
+        };
+
+        // On receiving a message (base64 image from server)
+        ws.onmessage = function(event) {
+            const base64Image = event.data;
+
+            // Create a new image object
+            const img = new Image();
+            img.onload = function() {
+                // Clear the canvas before drawing the new image
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                // Draw the new image on the canvas
+                ctx.drawImage(img, 0, 0);
+            };
+            // Set the source of the image to the base64 string
+            img.src = "data:image/png;base64," + base64Image;
+        };
+        // Handle errors
+        ws.onerror = function(error) {
+            console.error("WebSocket error:", error);
+        };
+        // Handle WebSocket closure
+        ws.onclose = function() {
+            console.log("WebSocket connection closed.");
+        };
+    </script>
+</body>
+</html>
