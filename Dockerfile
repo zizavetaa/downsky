@@ -1,6 +1,7 @@
-FROM ubuntu:22.04
+FROM python:3.11
 
 RUN apt-get update && apt-get install -y \
+    git \
     libsdl2-dev \
     libsdl2-image-dev \
     libsdl2-mixer-dev \
