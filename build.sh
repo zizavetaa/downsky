@@ -17,6 +17,7 @@ apt-get install -y \
     python3-dev \
     build-essential
 
+echo "INSTALLED"
 
 # Install Python dependencies from requirements.txt
 pip install -r requirements.txt
