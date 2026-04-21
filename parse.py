@@ -4,6 +4,7 @@ import queue
 import logging
 
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 
 
@@ -13,6 +14,11 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
+options = Options()
+options.add_argument("--headless=new")
+options.add_argument("--no-sandbox")
+options.add_argument("--disable-dev-shm-usage")
+
 
 class Parser:
     def __init__(self, 
@@ -20,7 +26,7 @@ class Parser:
             num_scrolls=6
         ):
         self.event_queue = queue.Queue()
-        self.driver = webdriver.Chrome()
+        self.driver = webdriver.Chrome(options=options)
         self.num_scrolls = num_scrolls
         self.save_path = save_path
         if os.path.isfile(self.save_path):
