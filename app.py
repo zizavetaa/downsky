@@ -6,11 +6,11 @@ import websockets
 import io
 import base64
 import threading
-import app.constants as constants
+import constants as constants
 from PIL import Image
 
-from app.parse import Parser
-from app.image_utils import RandomIndexSampler, PatchImage
+from parse import Parser
+from image_utils import RandomIndexSampler, PatchImage
 
 port = os.getenv("PORT", 10000)
 
