@@ -1,9 +1,18 @@
 FROM ubuntu:22.04
 
 RUN apt-get update && apt-get install -y \
-    libsdl-image1.2-dev libsdl-mixer1.2-dev \
-    libsdl-ttf2.0-dev libsdl1.2-dev libsmpeg-dev python-numpy subversion libportmidi-dev ffmpeg \
-    libswscale-dev libavformat-dev libavcodec-dev libfreetype6-dev \
+    libsdl2-dev \
+    libsdl2-image-dev \
+    libsdl2-mixer-dev \
+    libsdl2-ttf-dev \
+    libportmidi-dev \
+    ffmpeg \
+    libswscale-dev \
+    libavformat-dev \
+    libavcodec-dev \
+    libfreetype6-dev \
+    python3-numpy \
+    subversion \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
