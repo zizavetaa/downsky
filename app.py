@@ -12,7 +12,7 @@ from PIL import Image
 from app.parse import Parser
 from app.image_utils import RandomIndexSampler, PatchImage
 
-port = os.getenv("PORT", 8765)
+port = os.getenv("PORT", 10000)
 
 
 WHITE = (255, 255, 255)
