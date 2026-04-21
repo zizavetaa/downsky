@@ -1,3 +1,6 @@
+print('starting the app')
+
+
 import os
 import random
 import pygame
@@ -13,7 +16,6 @@ from parse import Parser
 from image_utils import RandomIndexSampler, PatchImage
 
 port = os.getenv("PORT", 10000)
-
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -195,7 +197,7 @@ async def send_frame(websocket, path, game):
 def start_server(game):
     async def websocket_server():
         server = await websockets.serve(lambda ws, path: send_frame(ws, path, game), "0.0.0.0", port)
-        print(f"WebSocket server started at ws://localhost:{port}")
+        print(f"WebSocket server started at ws://0.0.0.0:{port}")
         await server.wait_closed()
 
     asyncio.run(websocket_server())
