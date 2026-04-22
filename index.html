@@ -1,19 +1,19 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pygame to WebSocket</title>
     <style>
-        body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #222; }
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: white; }
         canvas { border: 1px solid white; }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas" width="640" height="480"></canvas>
     <script>
-        const ws = new WebSocket("wss://downsky-55w2.onrender.com/ws");
-        // const ws = new WebSocket("ws://localhost:10000/ws");
+        // const ws = new WebSocket("wss://downsky-55w2.onrender.com/ws");
+        const ws = new WebSocket("ws://localhost:10000/ws");
 
         // Get the canvas element and its context for drawing
         const canvas = document.getElementById("gameCanvas");
@@ -48,5 +48,81 @@
             console.log("WebSocket connection closed.");
         };
     </script>
+</body>
+</html> -->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pygame Stream</title>
+
+<style>
+  body {
+    margin: 0;
+    background: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+
+  canvas {
+    background: white;
+    display: block;
+  }
+</style>
+</head>
+
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+  // ✅ Dynamic WebSocket URL (works locally + production)
+  const ws = new WebSocket(
+    (location.protocol === "https:" ? "wss://" : "ws://") +
+    location.host +
+    "/ws"
+  );
+
+  const canvas = document.getElementById("gameCanvas");
+  const ctx = canvas.getContext("2d");
+
+  ws.onopen = () => {
+    console.log("WebSocket connected");
+  };
+
+  ws.onmessage = (event) => {
+    const img = new Image();
+
+    img.onload = () => {
+      // ✅ IMPORTANT: resize canvas to match frame exactly
+      if (canvas.width !== img.width || canvas.height !== img.height) {
+        canvas.width = img.width;
+        canvas.height = img.height;
+      }
+
+      // ✅ Clear and draw
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+    };
+
+    // ✅ Force fresh decode every frame
+    img.src = "";
+    img.src = "data:image/png;base64," + event.data;
+  };
+
+  ws.onerror = (err) => {
+    console.error("WebSocket error:", err);
+  };
+
+  ws.onclose = () => {
+    console.log("WebSocket closed");
+  };
+</script>
+
 </body>
 </html>

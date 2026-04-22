@@ -120,15 +120,15 @@ class Animator:
     
     def draw(self):
         self.screen.fill(constants.WHITE)
-        # self.left_surface.fill((255, 255, 255))
         pygame_img = self.pil_to_pygame_img(self.image)
         pygame_img = pygame.transform.scale(pygame_img, (416, 696))
         self.screen.blit(pygame_img, (self.resx, 0))
         for t, pos in self.texts:
             self.screen.blit(t, pos)
-        with self.frame_lock:
-            self.latest_frame = pygame.surfarray.array3d(self.screen).copy()
         pygame.display.flip()
+        with self.frame_lock:
+            self.latest_frame = pygame.display.get_surface()
+            # self.latest_frame = pygame.surfarray.array3d(surface).copy()
     
     def reset(self):
         self.texts.clear()
@@ -142,10 +142,8 @@ class Animator:
     def run(self):
         pygame.init()
         pygame.font.init()
-        self.font = pygame.font.SysFont("Arial", 8)
+        self.font = pygame.font.SysFont("Arial", 10)
         self.screen = pygame.display.set_mode((self.resx*2,self.resy))
-        # self.left_surface = pygame.Surface((self.resx,self.resy))
-        # self.right_surface = pygame.Surface((self.resx,self.resy))
         self.start_parser()
 
         last_check = 0
@@ -166,6 +164,8 @@ class Animator:
 
             if self.first_run:
                 self.image = self.generate_image()
+                text = 'не робит'
+                self.write_comment(text)
                 self.first_run = False
 
             now = pygame.time.get_ticks()
@@ -185,25 +185,20 @@ def start_server(game):
     async def send_frames(game):
         while not game.done:
 
-            # frame = pygame.Surface((game.resx * 2, game.resy))
-            # frame.blit(game.screen, (0, 0))
-
-            # pil_image = Image.frombytes(
-            #     "RGB",
-            #     (game.resx * 2, game.resy),
-            #     pygame.image.tostring(frame, "RGB")
-            # )
-
             with game.frame_lock:
                 if game.latest_frame is None:
                     await asyncio.sleep(0.01)
                     continue
                 frame = game.latest_frame.copy()
 
-            # fix orientation
-            frame = frame.swapaxes(0, 1)
+            # frame = frame.swapaxes(0, 1)
+            # frame = frame.transpose(1, 0, 2)
+            # print("frame shape before:", game.latest_frame.shape)
+            # print("frame shape after:", frame.shape)
 
-            pil_image = Image.fromarray(frame)
+            # pil_image = Image.fromarray(frame)
+            data = pygame.image.tostring(frame, "RGB")
+            pil_image = Image.frombytes("RGB", frame.get_size(), data)
 
             with io.BytesIO() as byte_io:
                 pil_image.save(byte_io, format="PNG")
@@ -220,27 +215,6 @@ def start_server(game):
                 clients.remove(ws)
             await asyncio.sleep(0.1)
 
-    # async def send_frames(ws, request):
-    #     while not game.done:
-    #         # frame = pygame.Surface((game.resx * 2, game.resy))
-    #         # frame.blit(game.screen, (0, 0))
-    #         frame = game.screen
-
-    #         import io, base64
-    #         from PIL import Image
-
-    #         pil_image = Image.frombytes(
-    #             "RGB",
-    #             (game.resx * 2, game.resy),
-    #             pygame.image.tostring(frame, "RGB")
-    #         )
-
-    #         byte_io = io.BytesIO()
-    #         pil_image.save(byte_io, format="PNG")
-    #         base64_image = base64.b64encode(byte_io.getvalue()).decode()
-
-    #         await ws.send_str(base64_image)
-    #         await asyncio.sleep(0.1)
 
     async def websocket_handler(request):
         ws = web.WebSocketResponse()
@@ -255,10 +229,6 @@ def start_server(game):
             clients.remove(ws)
             print(f"Client disconnected. Total: {len(clients)}")
         
-        # task = asyncio.create_task(send_frames(ws, request))
-        # async for msg in ws:
-        #     pass
-        # task.cancel()
         return ws
 
     async def index(request):
@@ -275,7 +245,6 @@ def start_server(game):
     app["game"] = game
     app.router.add_get("/", index)
     app.router.add_get("/ws", websocket_handler)
-    # app["sender_task"] = asyncio.create_task(send_frames(app["game"]))
 
     app.on_startup.append(start_background_tasks)
     app.on_cleanup.append(cleanup_background_tasks)
