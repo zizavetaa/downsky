@@ -13,7 +13,8 @@
     <canvas id="gameCanvas" width="640" height="480"></canvas>
     <script>
         // WebSocket connection to the server
-        const ws = new WebSocket("ws://localhost:8765");
+        const ws = new WebSocket("wss://downsky.onrender.com/ws");
+        // const ws = new WebSocket("ws://localhost:10000/ws");
 
         // Get the canvas element and its context for drawing
         const canvas = document.getElementById("gameCanvas");
