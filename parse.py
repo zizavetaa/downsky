@@ -83,7 +83,7 @@ class Parser:
             self.current_time = time.time()
             # comments = self.get_content()
             logging.info('searching for new comments')
-            num_comm = random.randint(1, 3)
+            num_comm = random.randint(1, 5)
             comm_ids = [random.randint(0, self.max_idx) for _ in range(num_comm)]
             comments = [self.seen[idx] for idx in comm_ids]
             for comment in comments:
@@ -91,4 +91,4 @@ class Parser:
                 if text:
                     self.event_queue.put(f"{text}")
                     print(text)
-            time.sleep(30)
+            time.sleep(120)
