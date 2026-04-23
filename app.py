@@ -184,85 +184,80 @@ class Animator:
 def start_server(game):
     clients = set()
 
-    # ---------------- FRAME BROADCAST LOOP ----------------
-    async def send_frames():
+    async def send_frames(game):
         while not game.done:
 
-            # get latest frame safely
             with game.frame_lock:
                 if game.latest_frame is None:
                     await asyncio.sleep(0.01)
                     continue
                 frame = game.latest_frame.copy()
 
-            # convert numpy array → image
-            frame = frame.transpose(1, 0, 2)  # (W,H,C) → (H,W,C)
-            pil_image = Image.fromarray(frame)
+            # pil_image = Image.fromarray(frame)
+            data = pygame.image.tostring(frame, "RGB")
+            pil_image = Image.frombytes("RGB", frame.get_size(), data)
 
-            # encode to base64 PNG
             with io.BytesIO() as byte_io:
                 pil_image.save(byte_io, format="PNG")
                 base64_image = base64.b64encode(byte_io.getvalue()).decode()
-
-            # broadcast safely
-            dead = set()
-
+            # --- broadcast ---
+            dead_clients = set()
             async def send(ws):
+            # for ws in clients:
                 try:
                     if ws.closed:
-                        dead.add(ws)
+                        dead_clients.add(ws)
                         return
                     await ws.send_str(base64_image)
                 except Exception:
-                    dead.add(ws)
+                    dead_clients.add(ws)
 
             await asyncio.gather(*(send(ws) for ws in clients), return_exceptions=True)
-
-            # cleanup dead clients
-            for ws in dead:
+            # cleanup disconnected clients
+            for ws in dead_clients:
+                # clients.remove(ws)
                 clients.discard(ws)
-
             await asyncio.sleep(0.1)
 
 
-    # ---------------- WEBSOCKET HANDLER ----------------
     async def websocket_handler(request):
         ws = web.WebSocketResponse()
         await ws.prepare(request)
 
         clients.add(ws)
-        print(f"Client connected. Total: {len(clients)}")
 
         try:
             async for msg in ws:
-                pass
-        except Exception as e:
-            print("WebSocket error:", e)
+                pass  # you can handle incoming messages here if needed
         finally:
-            clients.discard(ws)
+            # clients.remove(ws)
+            clients.discarfd(ws)
             print(f"Client disconnected. Total: {len(clients)}")
-
+        
         return ws
 
-
-    # ---------------- STARTUP / CLEANUP ----------------
+    async def index(request):
+        return web.FileResponse("index.html")
+    
     async def start_background_tasks(app):
-        app["sender_task"] = asyncio.create_task(send_frames())
-
+        app["sender_task"] = asyncio.create_task(send_frames(app["game"]))
+    
     async def cleanup_background_tasks(app):
         app["sender_task"].cancel()
         try:
             await app["sender_task"]
         except asyncio.CancelledError:
             pass
+    
+    # async def cleanup_background_tasks(app):
+    #     app["sender_task"].cancel()
+    #     await app["sender_task"]
 
-
-    # ---------------- AIOHTTP APP ----------------
     app = web.Application()
     app["game"] = game
-
+    app.router.add_get("/", index)
     app.router.add_get("/ws", websocket_handler)
-    app.router.add_static("/", path=".", show_index=True)  # serves index.html
+
     app.on_startup.append(start_background_tasks)
     app.on_cleanup.append(cleanup_background_tasks)
     web.run_app(app, host="0.0.0.0", port=10000, handle_signals=False)
