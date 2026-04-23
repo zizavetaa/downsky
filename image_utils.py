@@ -16,7 +16,7 @@ class RandomIndexSampler:
         random.shuffle(self.indices)
 
 class PatchImage:
-    def __init__(self, cols=20, rows=34, orig_path='sky3.png'):
+    def __init__(self, cols=20, rows=34, orig_path='sky_cut.png'):
         self.cols = cols
         self.rows = rows
         self.orig_image = Image.open(orig_path)

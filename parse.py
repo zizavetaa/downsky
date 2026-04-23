@@ -25,7 +25,7 @@ options.add_argument("--remote-debugging-port=9222")
 class Parser:
     def __init__(self, 
             save_path='downdetector_comments_new.txt', 
-            num_scrolls=6
+            num_scrolls=3
         ):
         self.event_queue = queue.Queue()
         self.driver = webdriver.Chrome(options=options)
@@ -67,7 +67,7 @@ class Parser:
         if comm_to_save not in self.seen:
             self.seen.append(comm_to_save)
             with open(self.save_path, 'a+') as f:
-                # f.write(comm_to_save)
+                f.write(comm_to_save)
                 logging.info(comm_to_save)
                 return text
         return False
@@ -81,6 +81,3 @@ class Parser:
                 if text:
                     self.event_queue.put(f"{text}")
             time.sleep(120)
-
-# parser = Parser()
-# parser.parse()

@@ -4,7 +4,6 @@ import pygame
 import asyncio
 import websockets
 from aiohttp import web
-from functools import partial
 from http import HTTPStatus
 import io
 import base64
@@ -19,16 +18,16 @@ port = os.getenv("PORT", 10000)
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-img_width = 416
+img_width = 624
 img_height = 696
 
-orig_path = 'sky3.png'
+orig_path = 'sky_cut.png'
 original = pygame.image.load(orig_path)
 
 class Animator:
     def __init__(self, bx, by):
-        self.resx = bx*constants.BWIDTH+2*constants.BOARD_HEIGHT+constants.BOARD_MARGIN
-        self.resy = by*constants.BHEIGHT+2*constants.BOARD_HEIGHT+constants.BOARD_MARGIN
+        self.resx = 624 
+        self.resy = 696 
         self.texts = []
         self.texts_only = []
         self.frame_lock = threading.Lock()
@@ -121,14 +120,13 @@ class Animator:
     def draw(self):
         self.screen.fill(constants.WHITE)
         pygame_img = self.pil_to_pygame_img(self.image)
-        pygame_img = pygame.transform.scale(pygame_img, (416, 696))
+        pygame_img = pygame.transform.scale(pygame_img, (img_width, img_height))
         self.screen.blit(pygame_img, (self.resx, 0))
         for t, pos in self.texts:
             self.screen.blit(t, pos)
         pygame.display.flip()
         with self.frame_lock:
             self.latest_frame = pygame.display.get_surface()
-            # self.latest_frame = pygame.surfarray.array3d(surface).copy()
     
     def reset(self):
         self.texts.clear()
@@ -191,10 +189,6 @@ def start_server(game):
                     continue
                 frame = game.latest_frame.copy()
 
-            # frame = frame.swapaxes(0, 1)
-            # frame = frame.transpose(1, 0, 2)
-            # print("frame shape before:", game.latest_frame.shape)
-            # print("frame shape after:", frame.shape)
 
             # pil_image = Image.fromarray(frame)
             data = pygame.image.tostring(frame, "RGB")
