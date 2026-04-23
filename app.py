@@ -21,6 +21,8 @@ BLACK = (0, 0, 0)
 img_width = 624
 img_height = 696
 
+comments_path = 'downdetector_comments_new.txt'
+
 orig_path = 'sky_cut.png'
 original = pygame.image.load(orig_path)
 
@@ -39,6 +41,8 @@ class Animator:
         self.patch_image = PatchImage(cols=bx, rows=by, orig_path=orig_path)
         self.num_patches = bx*by
         self.displayed_patches = 0
+        with open(comments_path) as f:
+            self.comments = f.readlines()
         self.idx_sampler = RandomIndexSampler(self.num_patches)
         self.pos_sampler = RandomIndexSampler(self.num_patches)
         self.image = Image.new("RGB", (img_width, img_height), (255, 255, 255))
